@@ -1,0 +1,23 @@
+--Benjamin Towle
+--9/22/2023
+--bit_width_extender.vhd
+--File contains elements 16 bit to 32 bit extender module used for I-Type instructions
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+
+entity bit_width_extender is 
+   port (i_Imm16   :  in std_logic_vector(15 downto 0);
+	 i_ctl     :  in std_logic;
+	 o_Imm32   :  out std_logic_vector(31 downto 0));
+
+end bit_width_extender;
+
+architecture dataflow of bit_width_extender is 
+begin
+  o_Imm32 <= x"0000" & i_Imm16 when (i_ctl = '0' or i_Imm16(15) = '0') else
+	     x"FFFF" & i_Imm16;
+  
+
+end dataflow;
+

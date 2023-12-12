@@ -1,0 +1,128 @@
+-------------------------------------------------------------------------
+-- Benjamin Towle
+-- Iowa State University
+-------------------------------------------------------------------------
+-- tb_dmem.vhd
+-------------------------------------------------------------------------
+-- DESCRIPTION: This file contains a testbench for mem.vhd module
+--              
+-- 9/21/2023
+-------------------------------------------------------------------------
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.std_logic_textio.all;  -- For logic types I/O
+library std;
+use std.textio.all;             -- For basic I/O
+
+entity tb_dmem is 
+  generic(gCLK_HPER : time := 5 ns);
+end tb_dmem;
+
+architecture structure of tb_dmem is 
+
+component mem is 
+   port 
+	(
+		clk		: in std_logic;
+		addr	        : in std_logic_vector((9) downto 0);
+		data	        : in std_logic_vector((31) downto 0);
+		we		: in std_logic;
+		q		: out std_logic_vector(31 downto 0)
+	);
+end component;
+
+signal s_clk  : std_logic;
+signal s_addr : std_logic_vector(9 downto 0);
+signal s_data : std_logic_vector(31 downto 0);
+signal s_we   : std_logic;
+signal s_q    : std_logic_vector(31 downto 0);
+signal write_data  : std_logic_vector(31 downto 0);
+
+begin
+dmem: mem
+
+port map(clk   => s_clk,
+	 addr  => s_addr,
+	 data  => s_data,
+	 we    => s_we,
+	 q     => s_q);
+
+
+  P_CLK: process
+  begin
+    s_CLK <= '0';        
+    wait for gCLK_HPER; 
+    s_CLK <= '1';        
+    wait for gCLK_HPER; 
+  end process;
+
+
+TEST_CASES: process
+begin
+
+--Reading data from the first 9 memory addresses
+s_addr  <= "0000000000";
+wait for 10 ns;
+
+s_addr  <= "0000000001";
+wait for 10 ns;
+
+s_addr  <= "0000000010";
+wait for 10 ns;
+
+s_addr  <= "0000000011";
+wait for 10 ns;
+
+s_addr  <= "0000000100";
+wait for 10 ns;
+
+s_addr  <= "0000000101";
+wait for 10 ns;
+
+s_addr  <= "0000000110";
+wait for 10 ns;
+
+s_addr  <= "0000000111";
+wait for 10 ns;
+
+s_addr  <= "0000001000";
+wait for 10 ns;
+
+s_addr  <= "0000001001";
+wait for 10 ns;
+
+
+
+--writing data to 0x100 in memory
+s_addr  <= "0000000000";
+wait for 10 ns;
+write_data <= s_q;
+wait for 10 ns;
+
+s_addr <= "0100000000";
+s_we <= '1';
+s_data <= write_data;
+wait for 10 ns;
+
+
+
+s_we    <= '0';
+s_addr  <= "0000000001";
+wait for 10 ns;
+write_data <= s_q;
+wait for 10 ns;
+
+s_addr <= "0100000001";
+s_we <= '1';
+s_data <= write_data;
+wait for 10 ns;
+
+
+
+
+
+end process;
+
+
+end structure;

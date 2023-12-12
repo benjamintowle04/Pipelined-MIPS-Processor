@@ -1,0 +1,305 @@
+-------------------------------------------------------------------------
+-- Benjamin Towle
+-- Iowa State University
+-------------------------------------------------------------------------
+-- tb_second_datapath.vhd
+-------------------------------------------------------------------------
+-- DESCRIPTION: This file contains a testbench for the second datapath File
+--              
+-- 9/26/2023
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.std_logic_textio.all;  -- For logic types I/O
+library std;
+use std.textio.all;             -- For basic I/O
+
+entity tb_second_datapath is
+ 
+ generic (
+    N : integer := 5;
+    gCLK_HPER : time := 50 ns);
+
+end tb_second_datapath;
+
+architecture structure of tb_second_datapath is 
+-- Calculate the clock period as twice the half-period
+constant cCLK_PER  : time := gCLK_HPER * 2;
+
+component second_datapath is 
+   port(i_WA     : in std_logic_vector(N-1 downto 0);
+	i_CLK    : in std_logic;
+	i_RST    : in std_logic;
+	i_WEN    : in std_logic;
+	i_RA1    : in std_logic_vector(N-1 downto 0);
+	i_RA2    : in std_logic_vector(N-1 downto 0);
+	i_Immediate : in std_logic_vector(15 downto 0);
+	ALUSrc      : in std_logic;
+	nAdd_Sub    : in std_logic;
+	ext_ctl     : in std_logic;
+	mem_ctl     : in std_logic;
+	mem_WE      : in std_logic);  
+end component;
+
+
+signal s_CLK	   : std_logic;
+signal s_WA	   : std_logic_vector(N-1 downto 0);
+signal s_RST	   : std_logic;
+signal s_WEN	   : std_logic;
+signal s_RA1	   : std_logic_vector(N-1 downto 0);
+signal s_RA2	   : std_logic_vector(N-1 downto 0);
+signal s_Immediate : std_logic_vector(15 downto 0);
+signal s_ALUSrc	   : std_logic;
+signal s_nAdd_Sub  : std_logic;
+signal s_ext_ctl  : std_logic;
+signal s_mem_ctl  : std_logic;
+signal s_mem_WE  : std_logic;
+
+
+begin
+DUT0: second_datapath
+port map (i_WA   => s_WA,
+	  i_CLK  => s_CLK,
+	  i_RST  => s_RST,
+	  i_WEN  => s_WEN,
+	  i_RA1  => s_RA1,
+	  i_RA2  => s_RA2,
+	  i_Immediate    => s_Immediate,
+	  ALUSrc    => s_ALUSrc,
+	  nAdd_Sub  => s_nAdd_Sub,
+	  ext_ctl   => s_ext_ctl,
+	  mem_ctl   => s_mem_ctl,
+	  mem_WE    => s_mem_WE);
+
+
+  --This first process is to setup the clock for the test bench
+  --Cycle starts low then goes high
+  P_CLK: process
+  begin
+    s_CLK <= '0';        
+    wait for gCLK_HPER; 
+    s_CLK <= '1';        
+    wait for gCLK_HPER; 
+  end process;
+
+TEST_CASE: process
+begin
+
+--Reset values
+s_WA  <= "00000";
+s_RST <= '1';
+s_WEN <= '0';
+s_RA1 <= "00000";
+s_RA2 <= "00000";
+s_Immediate <= x"0000";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '0';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+
+
+--addi $25, $0, 0
+s_WA  <= "11001";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "00000";
+s_RA2 <= "00000";
+s_Immediate <= x"0000";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+
+--addi $26, $0, 256
+s_WA  <= "11010";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "00000";
+s_RA2 <= "00000";
+s_Immediate <= x"0100";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+
+--lw $1, 0($25)
+s_WA  <= "00001";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "11001";
+s_RA2 <= "00000";
+s_Immediate <= x"0000";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '1';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+--lw $2, 4($25)
+s_WA  <= "00010";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "11001";
+s_RA2 <= "00000";
+s_Immediate <= x"0004";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '1';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+--add $1, $1, $2
+s_WA  <= "00001";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "00001";
+s_RA2 <= "00010";
+s_Immediate <= x"0000";
+s_ALUSrc <= '0';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+--sw $1, 0($26)
+s_WA  <= "00000";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "11010";
+s_RA2 <= "00001";
+s_Immediate <= x"0000";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '1';
+s_mem_WE  <= '1';
+wait for cCLK_PER;
+
+--lw $2, 8($25)
+s_WA  <= "00010";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "11001";
+s_RA2 <= "00000";
+s_Immediate <= x"0008";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '1';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+--add $1, $1, $2
+s_WA  <= "00001";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "00001";
+s_RA2 <= "00010";
+s_Immediate <= x"0000";
+s_ALUSrc <= '0';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+--sw $1, 4($26)
+s_WA  <= "00000";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "11010";
+s_RA2 <= "00001";
+s_Immediate <= x"0004";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '1';
+s_mem_WE  <= '1';
+wait for cCLK_PER;
+
+--lw $2, 12($25)
+s_WA  <= "00010";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "11001";
+s_RA2 <= "00000";
+s_Immediate <= x"000C";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '1';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+--add $1, $1, $2
+s_WA  <= "00001";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "00001";
+s_RA2 <= "00010";
+s_Immediate <= x"0000";
+s_ALUSrc <= '0';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+--sw $1, 8($26)
+s_WA  <= "00000";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "11010";
+s_RA2 <= "00001";
+s_Immediate <= x"0008";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '1';
+s_mem_WE  <= '1';
+wait for cCLK_PER;
+
+--lw $2, 16($25)
+s_WA  <= "00010";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "11001";
+s_RA2 <= "00000";
+s_Immediate <= x"0010";
+s_ALUSrc <= '1';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '1';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+--add $1, $1, $2
+s_WA  <= "00001";
+s_RST <= '0';
+s_WEN <= '1';
+s_RA1 <= "00001";
+s_RA2 <= "00010";
+s_Immediate <= x"0000";
+s_ALUSrc <= '0';
+s_nAdd_Sub <= '0';
+s_mem_ctl <= '0';
+s_ext_ctl <= '1';
+s_mem_WE  <= '0';
+wait for cCLK_PER;
+
+end process;
+
+
+end structure;

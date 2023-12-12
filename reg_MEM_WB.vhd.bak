@@ -1,0 +1,293 @@
+--Benjamin Towle & Lalith Vattyam 
+--11/1/2023
+--reg_MEM_WB.vhd
+--File contains elements of an N bit register with dffg.vhd as a component
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+
+entity reg_MEM_WB is 
+   generic(N: integer := 32);
+   port(i_Flush		 : in std_logic;
+		i_CLK       	: in std_logic;                          -- Clock input
+        i_RST           : in std_logic;                          -- Reset input
+        i_WE            : in std_logic;                          -- Write enable input
+
+	--Control inputs 
+	i_memToReg	: in std_logic;
+	i_regWr		: in std_logic;
+	i_regDst	: in std_logic;
+	i_jal       : in std_logic;
+	i_halt		: in std_logic;
+	i_Overflow  : in std_logic;
+	i_pJPC      : in std_logic_vector(31 downto 0);
+
+	--32-bit inputs
+	i_PC_Incremented  : in std_logic_vector(31 downto 0);
+	i_dMemOut	: in std_logic_vector(N-1 downto 0);
+	i_ALUOut	: in std_logic_vector(N-1 downto 0);
+	i_RTaddr        : in std_logic_vector(4 downto 0);
+	i_RDaddr    : in std_logic_vector(4 downto 0);
+	i_wrAddr    : in std_logic_vector(4 downto 0); 
+	
+	--Control outputs
+	o_memToReg	: out std_logic;
+	o_regWr		: out std_logic;
+	o_regDst	: out std_logic;
+	o_jal       : out std_logic;
+	o_halt		: out std_logic; 
+	o_Overflow  : out std_logic;
+	o_pJPC      : out std_logic_vector(31 downto 0);
+
+	--32-bit outputs
+	o_PC_Incremented  : out std_logic_vector(31 downto 0);
+	o_dMemOut	: out std_logic_vector(N-1 downto 0);
+	o_ALUOut	: out std_logic_vector(N-1 downto 0);
+	o_RTaddr        : out std_logic_vector(4 downto 0);
+	o_RDaddr    : out std_logic_vector(4 downto 0);
+	o_wrAddr    : out std_logic_vector(4 downto 0)); 
+
+
+end reg_MEM_WB;
+
+architecture structure of reg_MEM_WB is
+
+ component dffg is 
+  port(i_CLK        : in std_logic;     -- Clock input
+       i_RST        : in std_logic;     -- Reset input
+       i_WE         : in std_logic;     -- Write enable input
+       i_D          : in std_logic;     -- Data value input
+       o_Q          : out std_logic);   -- Data value output
+ end component;
+
+ component nBitRegister is 
+  generic (N: integer := 32);
+   port(i_CLK        : in std_logic;                          -- Clock input
+        i_RST        : in std_logic;                          -- Reset input
+        i_WE         : in std_logic;                          -- Write enable input
+        i_D          : in std_logic_vector(N-1 downto 0);     -- Data value input
+        o_Q          : out std_logic_vector(N-1 downto 0));   -- Data value output
+ end component;
+
+component mux2t1_N is  
+	generic(N : integer := 32);
+	port(i_S          : in std_logic;
+		 i_D0         : in std_logic_vector(N-1 downto 0);
+		 i_D1         : in std_logic_vector(N-1 downto 0);
+		 o_O          : out std_logic_vector(N-1 downto 0));
+end component;
+
+component mux2t1 is
+	port(
+		i_S	: in std_logic;
+		i_D0	: in std_logic;
+		i_D1	: in std_logic;
+		o_O	: out std_logic);
+end component;
+
+signal s_memToReg	: std_logic;
+signal s_regWr		: std_logic;
+signal s_regDst	: std_logic;
+signal s_jal       : std_logic;
+signal s_halt		: std_logic;
+signal s_Overflow  : std_logic;
+signal s_pJPC      : std_logic_vector(31 downto 0);
+signal s_PC_Incremented  : std_logic_vector(31 downto 0);
+signal s_dMemOut	: std_logic_vector(31 downto 0);
+signal s_ALUOut	: std_logic_vector(31 downto 0);
+signal s_RTaddr        : std_logic_vector(4 downto 0);
+signal s_RDaddr    : std_logic_vector(4 downto 0);
+signal s_wrAddr    : std_logic_vector(4 downto 0); 
+
+
+
+begin
+
+ RegWrite: dffg
+  port map(i_CLK	=> i_CLK,
+       	   i_RST 	=> i_RST,
+           i_WE  	=> i_WE,
+           i_D   	=> i_regWr,
+           o_Q   	=> s_regWr);
+
+MUX_RegWrite : mux2t1
+	port map(i_S          => i_Flush,
+		i_D0         => s_regWr,
+		i_D1         => '0',
+		o_O          => o_regWr);
+
+ RegDst: dffg  
+  port map(i_CLK	=> i_CLK,
+	   i_RST 	=> i_RST,
+   	   i_WE		=> i_WE,
+	   i_D		=> i_regDst,
+	   o_Q		=> s_regDst);
+
+MUX_RegDst : mux2t1
+	port map(i_S          => i_Flush,
+		i_D0         => s_regDst,
+		i_D1         => '0',
+		o_O          => o_regDst);
+  
+ DMemOut: nBitRegister 
+  generic map(N => 32) 
+  port map(i_CLK	=> i_CLK,
+	   i_RST 	=> i_RST,
+   	   i_WE		=> i_WE,
+	   i_D		=> i_dMemOut,
+	   o_Q		=> s_dMemOut);
+
+MUX_DMemOut: mux2t1_N
+	generic map(N => 32)
+	port map(i_S          => i_Flush,
+			i_D0         => s_dMemOut,
+			i_D1         => x"00000000",
+			o_O          => o_dMemOut);
+
+ MemToReg: dffg 
+  port map(i_CLK	=> i_CLK,
+	   i_RST 	=> i_RST,
+   	   i_WE		=> i_WE,
+	   i_D		=> i_memToReg,
+	   o_Q		=> s_memToReg);
+
+MUX_MemToReg : mux2t1
+	port map(i_S          => i_Flush,
+		i_D0         => s_memToReg,
+		i_D1         => '0',
+		o_O          => o_memToReg);
+
+ ALUOut: nBitRegister 
+  generic map(N => 32) 
+  port map(i_CLK	=> i_CLK,
+	   i_RST 	=> i_RST,
+   	   i_WE		=> i_WE,
+	   i_D		=> i_ALUOut,
+	   o_Q		=> s_ALUOut);
+
+MUX_ALUOut: mux2t1_N
+	generic map(N => 32)
+	port map(i_S          => i_Flush,
+			i_D0         => s_ALUOut,
+			i_D1         => x"00000000",
+			o_O          => o_ALUOut);
+
+ Halt: dffg
+  port map(i_CLK	=> i_CLK,
+       	   i_RST 	=> i_RST,
+           i_WE  	=> i_WE,
+           i_D   	=> i_halt,
+           o_Q   	=> s_halt);
+
+MUX_halt : mux2t1
+	port map(i_S          => i_Flush,
+		i_D0         => s_halt,
+		i_D1         => '0',
+		o_O          => o_halt);
+
+OVF: dffg
+port map(i_CLK	=> i_CLK,
+	i_RST 	=> i_RST,
+	i_WE  	=> i_WE,
+ 	i_D   	=> i_Overflow,
+ 	o_Q   	=> s_Overflow);
+
+MUX_OVF : mux2t1
+	port map(i_S          => i_Flush,
+		i_D0         => s_Overflow,
+		i_D1         => '0',
+		o_O          => o_Overflow);
+
+JAL: dffg 
+  port map(i_CLK	=> i_CLK,
+       	   i_RST 	=> i_RST,
+           i_WE  	=> i_WE,
+           i_D   	=> i_jal,
+           o_Q   	=> s_jal);
+
+MUX_jal : mux2t1
+	port map(i_S          => i_Flush,
+		i_D0         => s_jal,
+		i_D1         => '0',
+		o_O          => o_jal);
+
+RT_ADDR: nBitRegister 
+  generic map(N => 5) 
+  port map(i_CLK	=> i_CLK,
+	   i_RST 	=> i_RST,
+   	   i_WE		=> i_WE,
+	   i_D		=> i_RTaddr,
+	   o_Q		=> s_RTaddr);
+
+MUX_RT_ADDR: mux2t1_N
+   generic map(N => 5)
+   port map(i_S          => i_Flush,
+     	    i_D0         => s_RTaddr,
+            i_D1         => b"00000",
+            o_O          => o_RTaddr);
+
+RD_ADDR: nBitRegister 
+ generic map(N => 5) 
+  port map(i_CLK	=> i_CLK, 
+	i_RST 	=> i_RST,
+	   i_WE		=> i_WE,
+	i_D		=> i_RDaddr,
+	o_Q		=> s_RDaddr);
+
+MUX_RD_ADDR: mux2t1_N
+   generic map(N => 5)
+   port map(i_S          => i_Flush,
+     	    i_D0         => s_RDaddr,
+            i_D1         => b"00000",
+            o_O          => o_RDaddr);
+
+
+WR_ADDR: nBitRegister 
+ generic map(N => 5) 
+  port map(i_CLK	=> i_CLK, 
+	i_RST 	=> i_RST,
+	i_WE		=> i_WE,
+	i_D		=> i_wrAddr,
+	o_Q		=> s_wrAddr);
+
+MUX_WR_ADDR: mux2t1_N
+   generic map(N => 5)
+   port map(i_S          => i_Flush,
+     	    i_D0         => s_wrAddr,
+            i_D1         => b"00000",
+            o_O          => o_wrAddr);
+
+G_pJPC : nBitRegister
+generic map (N => 32) 
+port map(i_CLK  => i_CLK,
+		i_RST  => i_RST,
+		i_WE   => i_WE,
+		i_D    => i_pJPC,
+		o_Q    => s_pJPC);
+
+MUX_pJPC: mux2t1_N
+   generic map(N => 32)
+   port map(i_S          => i_Flush,
+     	    i_D0         => s_pJPC,
+            i_D1         => x"00000000",
+            o_O          => o_pJPC);
+		
+
+--32-bit and 3-bit inputs
+G_PC_Incremented : nBitRegister
+generic map (N  => 32)
+port map(i_CLK  => i_CLK,
+	i_RST  => i_RST,
+	i_WE   => i_WE,
+	i_D    => i_PC_Incremented,
+	o_Q    => s_PC_Incremented);
+
+MUX_PC_Incremented: mux2t1_N
+   generic map(N => 32)
+   port map(i_S          => i_Flush,
+     	    i_D0         => s_PC_Incremented,
+            i_D1         => x"00000000",
+            o_O          => o_PC_Incremented);
+
+
+end structure;
